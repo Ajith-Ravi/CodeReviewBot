@@ -53,6 +53,7 @@ class CodeReviewBot:
         Returns:
             List of dictionaries containing review comments and their positions
         """
+
         prompt = f"""
         Review the following code changes and provide specific, actionable feedback.
         Focus on:
