@@ -74,7 +74,7 @@ class CodeReviewBot:
         """
         
         response = openai.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             prompt=prompt,
             max_tokens=1000,
             temperature=0.7
