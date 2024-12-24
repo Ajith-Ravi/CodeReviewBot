@@ -54,6 +54,8 @@ class CodeReviewBot:
             List of dictionaries containing review comments and their positions
         """
 
+        changed_lines_combined =   '\n'.join(changed_lines)
+
         prompt = f"""
         Review the following code changes and provide specific, actionable feedback.
         Focus on:
@@ -63,7 +65,7 @@ class CodeReviewBot:
         - Readability and maintainability
         
         Changed lines:
-        {'\n'.join(changed_lines)}
+        {changed_lines_combined}
         
         Full context:
         {code}
