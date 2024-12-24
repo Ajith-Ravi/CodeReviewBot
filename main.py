@@ -73,7 +73,7 @@ class CodeReviewBot:
         Provide feedback in a structured format.
         """
         
-        response = openai.Completion.create(
+        response = openai.completions.create(
             engine="gpt-4",
             prompt=prompt,
             max_tokens=1000,
