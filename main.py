@@ -129,6 +129,12 @@ def main():
     repo_name = os.getenv("GITHUB_REPOSITORY")
     pr_number = int(os.getenv("GITHUB_PR_NUMBER"))
 
+    print(
+        f"Environment variables: {github_token}, {gemini_api_key}, {repo_name}, {pr_number}"
+    )
+
+    print(github_token, gemini_api_key, repo_name, pr_number)
+
     if not all([github_token, gemini_api_key, repo_name, pr_number]):
         raise ValueError("Missing required environment variables")
 
