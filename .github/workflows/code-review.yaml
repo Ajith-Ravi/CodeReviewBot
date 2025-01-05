@@ -23,7 +23,7 @@ jobs:
       - name: Run code review bot
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
         run: python main.py
