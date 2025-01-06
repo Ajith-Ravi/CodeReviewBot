@@ -58,6 +58,12 @@ class CodeReviewBot:
                     (".py", ".js", ".ts", ".java", ".cpp", ".jsx", ".tsx")
                 ):
                     patch = file.patch
+                    if patch is None:
+                        print(
+                            f"No patch available for file {file.filename}. Skipping..."
+                        )
+                        continue
+
                     changed_lines_dict, line_numbers = self._extract_changed_lines(
                         patch
                     )
