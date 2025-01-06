@@ -24,6 +24,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_APP_ID: ${{ secrets.GH_APP_ID }}
+          GITHUB_PRIVATE_KEY: ${{ secrets.GH_PRIVATE_KEY }}
+          GITHUB_INSTALLATION_ID: ${{ secrets.GH_INSTALLATION_ID }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
         run: python main.py

@@ -1,25 +1,107 @@
 import os
 import re
+import jwt
+import time
+import requests
 from typing import List, Tuple, Optional, Dict
-from github import Github
+from github import Github, GithubIntegration
 import google.generativeai as genai
 from github.PullRequest import PullRequest
 from github.Repository import Repository
 from github.ContentFile import ContentFile
 
 
-class CodeReviewBot:
-    def __init__(self, github_token: str, gemini_api_key: str):
+class GitHubAppAuth:
+    def __init__(self, app_id: str, private_key: str):
         """
-        Initialize the code review bot with necessary credentials
+        Initialize GitHub App authentication
 
         Args:
-            github_token (str): GitHub App installation token or PAT
+            app_id (str): GitHub App ID
+            private_key (str): GitHub App private key
+        """
+        self.app_id = app_id
+        self.private_key = private_key
+        self.jwt_token = None
+        self.jwt_expires_at = 0
+        self.installation_token = None
+        self.token_expires_at = 0
+
+    def _create_jwt(self) -> str:
+        """Create a JWT for GitHub App authentication"""
+        now = int(time.time())
+        if self.jwt_token and now < self.jwt_expires_at - 60:
+            return self.jwt_token
+
+        payload = {
+            "iat": now,
+            "exp": now + 600,  # JWT valid for 10 minutes
+            "iss": self.app_id,
+        }
+
+        self.jwt_token = jwt.encode(payload, self.private_key, algorithm="RS256")
+        self.jwt_expires_at = now + 600
+        return self.jwt_token
+
+    def get_installation_token(self, installation_id: str) -> str:
+        """
+        Get an installation access token
+
+        Args:
+            installation_id (str): GitHub App installation ID
+
+        Returns:
+            str: Installation access token
+        """
+        now = int(time.time())
+        if self.installation_token and now < self.token_expires_at - 60:
+            return self.installation_token
+
+        jwt_token = self._create_jwt()
+        headers = {
+            "Authorization": f"Bearer {jwt_token}",
+            "Accept": "application/vnd.github.v3+json",
+        }
+
+        response = requests.post(
+            f"https://api.github.com/app/installations/{installation_id}/access_tokens",
+            headers=headers,
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        self.installation_token = data["token"]
+        self.token_expires_at = int(time.time()) + (data["expires_at"] - time.time())
+
+        return self.installation_token
+
+
+class CodeReviewBot:
+    def __init__(
+        self, app_auth: GitHubAppAuth, installation_id: str, gemini_api_key: str
+    ):
+        """
+        Initialize the code review bot with GitHub App authentication
+
+        Args:
+            app_auth (GitHubAppAuth): GitHub App authentication handler
+            installation_id (str): GitHub App installation ID
             gemini_api_key (str): Gemini API key for code analysis
         """
-        self.github = Github(github_token)
+        self.app_auth = app_auth
+        self.installation_id = installation_id
+        self.github = self._get_github_client()
         genai.configure(api_key=gemini_api_key)
         self.model = genai.GenerativeModel("gemini-1.5-pro")
+
+    def _get_github_client(self) -> Github:
+        """Get a GitHub client with fresh installation token"""
+        token = self.app_auth.get_installation_token(self.installation_id)
+        return Github(token)
+
+    def _refresh_github_client(self):
+        """Refresh GitHub client with a new token if needed"""
+        self.github = self._get_github_client()
 
     def get_pull_request_changes(
         self, repo_name: str, pr_number: int
@@ -33,9 +115,9 @@ class CodeReviewBot:
 
         Returns:
             List of tuples containing (file_name, file_content, changed_lines_dict, line_numbers)
-            where changed_lines_dict maps line numbers to their content
         """
         try:
+            self._refresh_github_client()
             repo = self.github.get_repo(repo_name)
             pull_request = repo.get_pull(pr_number)
             files = pull_request.get_files()
@@ -66,22 +148,13 @@ class CodeReviewBot:
             return []
 
     def _extract_changed_lines(self, patch: str) -> Tuple[Dict[int, str], List[int]]:
-        """
-        Extract the actual changed lines and their line numbers from a patch
-
-        Args:
-            patch (str): Git patch string
-
-        Returns:
-            Tuple of (changed_lines_dict mapping line numbers to content, line_numbers list)
-        """
+        """Extract changed lines and their numbers from a patch"""
         changed_lines_dict = {}
         line_numbers = []
         current_line = 0
 
         for line in patch.split("\n"):
             if line.startswith("@@"):
-                # Parse the @@ line to get the starting line number
                 match = re.search(r"\+(\d+)", line)
                 if match:
                     current_line = int(match.group(1)) - 1
@@ -99,17 +172,7 @@ class CodeReviewBot:
     def analyze_code(
         self, filename: str, code: str, changed_lines_dict: Dict[int, str]
     ) -> List[dict]:
-        """
-        Analyze code using Gemini's API to generate review comments
-
-        Args:
-            filename (str): Name of the file being analyzed
-            code (str): Full file content
-            changed_lines_dict (Dict[int, str]): Dictionary mapping line numbers to changed lines
-
-        Returns:
-            List of dictionaries containing review comments and their positions
-        """
+        """Analyze code using Gemini API"""
         try:
             changed_lines_formatted = "\n".join(
                 f"Line {line_num}: {content}"
@@ -159,16 +222,7 @@ class CodeReviewBot:
     def _parse_ai_feedback(
         self, feedback_text: str, valid_line_numbers: List[int]
     ) -> List[dict]:
-        """
-        Parse AI feedback into structured format
-
-        Args:
-            feedback_text (str): Raw feedback from Gemini
-            valid_line_numbers (List[int]): List of valid line numbers for comments
-
-        Returns:
-            List of dictionaries containing parsed feedback with line numbers
-        """
+        """Parse AI feedback into structured format"""
         comments = []
         current_comment = {}
 
@@ -184,13 +238,11 @@ class CodeReviewBot:
                 current_comment["body"] = line[6:].strip()
             elif line.startswith("LINE:"):
                 try:
-                    # Extract the line number and validate it
                     line_text = line[5:].strip()
                     line_num = int(re.search(r"\d+", line_text).group())
                     if line_num in valid_line_numbers:
                         current_comment["line"] = line_num
                     else:
-                        # Default to the first valid line if the suggested line is invalid
                         current_comment["line"] = valid_line_numbers[0]
                 except (ValueError, AttributeError):
                     current_comment["line"] = valid_line_numbers[0]
@@ -207,16 +259,9 @@ class CodeReviewBot:
     def post_review_comments(
         self, repo_name: str, pr_number: int, filename: str, comments: List[dict]
     ):
-        """
-        Post review comments on the pull request using the bot identity
-
-        Args:
-            repo_name (str): Repository name
-            pr_number (int): Pull request number
-            filename (str): File being reviewed
-            comments (List[dict]): List of review comments with line numbers
-        """
+        """Post review comments using GitHub App identity"""
         try:
+            self._refresh_github_client()
             repo = self.github.get_repo(repo_name)
             pull_request = repo.get_pull(pr_number)
             commit = pull_request.get_commits().reversed[0]
@@ -228,7 +273,7 @@ class CodeReviewBot:
                         {
                             "path": filename,
                             "line": comment["line"],
-                            "body": f"🤖 Code Review Bot:\n\n{comment['body']}",
+                            "body": f"{comment['body']}\n\n_I am a GitHub App bot providing automated code review suggestions._",
                         }
                     )
 
@@ -243,13 +288,17 @@ class CodeReviewBot:
 
 def main():
     # Load environment variables
-    github_token = os.getenv("GITHUB_TOKEN")
+    app_id = os.getenv("GITHUB_APP_ID")
+    private_key = os.getenv("GITHUB_PRIVATE_KEY")
+    installation_id = os.getenv("GITHUB_INSTALLATION_ID")
     gemini_api_key = os.getenv("GEMINI_API_KEY")
     repo_name = os.getenv("GITHUB_REPOSITORY")
     pr_number = os.getenv("GITHUB_PR_NUMBER")
 
     # Validate environment variables
-    if not all([github_token, gemini_api_key, repo_name, pr_number]):
+    if not all(
+        [app_id, private_key, installation_id, gemini_api_key, repo_name, pr_number]
+    ):
         raise ValueError("Missing required environment variables")
 
     try:
@@ -257,8 +306,11 @@ def main():
     except ValueError:
         raise ValueError("GITHUB_PR_NUMBER must be an integer")
 
+    # Initialize GitHub App authentication
+    app_auth = GitHubAppAuth(app_id, private_key)
+
     # Initialize and run the bot
-    bot = CodeReviewBot(github_token, gemini_api_key)
+    bot = CodeReviewBot(app_auth, installation_id, gemini_api_key)
 
     # Get changes from the pull request
     changes = bot.get_pull_request_changes(repo_name, pr_number)
