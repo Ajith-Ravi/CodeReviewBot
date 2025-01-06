@@ -85,6 +85,8 @@ class CodeReviewBot:
         model = genai.GenerativeModel("gemini-1.5-flash")
         response = model.generate_content(prompt)
 
+        print(response.text)
+
         # Parse the response and generate structured feedback
         feedback = self._parse_ai_feedback(response.text)
 
