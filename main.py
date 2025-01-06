@@ -1,6 +1,6 @@
 import os
 import re
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 from github import Github
 import google.generativeai as genai
 from github.PullRequest import PullRequest
@@ -14,18 +14,16 @@ class CodeReviewBot:
         Initialize the code review bot with necessary credentials
 
         Args:
-            github_token (str): GitHub personal access token
+            github_token (str): GitHub App installation token or PAT
             gemini_api_key (str): Gemini API key for code analysis
         """
         self.github = Github(github_token)
         genai.configure(api_key=gemini_api_key)
-        self.model = genai.GenerativeModel(
-            "gemini-1.5-pro"
-        )  # Using pro model for better code analysis
+        self.model = genai.GenerativeModel("gemini-1.5-pro")
 
     def get_pull_request_changes(
         self, repo_name: str, pr_number: int
-    ) -> List[Tuple[str, str, List[str], List[int]]]:
+    ) -> List[Tuple[str, str, Dict[int, str], List[int]]]:
         """
         Get the changes from a pull request
 
@@ -34,7 +32,8 @@ class CodeReviewBot:
             pr_number (int): Pull request number
 
         Returns:
-            List of tuples containing (file_name, file_content, changed_lines, line_numbers)
+            List of tuples containing (file_name, file_content, changed_lines_dict, line_numbers)
+            where changed_lines_dict maps line numbers to their content
         """
         try:
             repo = self.github.get_repo(repo_name)
@@ -47,13 +46,15 @@ class CodeReviewBot:
                     (".py", ".js", ".ts", ".java", ".cpp", ".jsx", ".tsx")
                 ):
                     patch = file.patch
-                    changed_lines, line_numbers = self._extract_changed_lines(patch)
+                    changed_lines_dict, line_numbers = self._extract_changed_lines(
+                        patch
+                    )
                     try:
                         content = repo.get_contents(
                             file.filename, ref=pull_request.head.sha
                         ).decoded_content.decode("utf-8")
                         changes.append(
-                            (file.filename, content, changed_lines, line_numbers)
+                            (file.filename, content, changed_lines_dict, line_numbers)
                         )
                     except (AttributeError, UnicodeDecodeError) as e:
                         print(f"Error reading file {file.filename}: {e}")
@@ -64,7 +65,7 @@ class CodeReviewBot:
             print(f"Error getting pull request changes: {e}")
             return []
 
-    def _extract_changed_lines(self, patch: str) -> Tuple[List[str], List[int]]:
+    def _extract_changed_lines(self, patch: str) -> Tuple[Dict[int, str], List[int]]:
         """
         Extract the actual changed lines and their line numbers from a patch
 
@@ -72,9 +73,9 @@ class CodeReviewBot:
             patch (str): Git patch string
 
         Returns:
-            Tuple of (changed_lines, line_numbers)
+            Tuple of (changed_lines_dict mapping line numbers to content, line_numbers list)
         """
-        changed_lines = []
+        changed_lines_dict = {}
         line_numbers = []
         current_line = 0
 
@@ -86,15 +87,17 @@ class CodeReviewBot:
                     current_line = int(match.group(1)) - 1
                 continue
 
-            current_line += 1
             if line.startswith("+") and not line.startswith("+++"):
-                changed_lines.append(line[1:].strip())
+                current_line += 1
+                changed_lines_dict[current_line] = line[1:].strip()
                 line_numbers.append(current_line)
+            elif not line.startswith("-"):
+                current_line += 1
 
-        return changed_lines, line_numbers
+        return changed_lines_dict, line_numbers
 
     def analyze_code(
-        self, filename: str, code: str, changed_lines: List[str]
+        self, filename: str, code: str, changed_lines_dict: Dict[int, str]
     ) -> List[dict]:
         """
         Analyze code using Gemini's API to generate review comments
@@ -102,13 +105,16 @@ class CodeReviewBot:
         Args:
             filename (str): Name of the file being analyzed
             code (str): Full file content
-            changed_lines (List[str]): List of changed lines
+            changed_lines_dict (Dict[int, str]): Dictionary mapping line numbers to changed lines
 
         Returns:
             List of dictionaries containing review comments and their positions
         """
         try:
-            changed_lines_combined = "\n".join(changed_lines)
+            changed_lines_formatted = "\n".join(
+                f"Line {line_num}: {content}"
+                for line_num, content in changed_lines_dict.items()
+            )
             file_extension = os.path.splitext(filename)[1]
 
             prompt = f"""
@@ -122,9 +128,9 @@ class CodeReviewBot:
 
             File: {filename}
             
-            Changed lines:
-            ```{file_extension}
-            {changed_lines_combined}
+            Changed lines (with line numbers):
+            ```
+            {changed_lines_formatted}
             ```
             
             Full context:
@@ -134,27 +140,34 @@ class CodeReviewBot:
             
             Provide each piece of feedback in the following format:
             ISSUE: [Brief description of the issue]
-            LOCATION: [Relevant code snippet or line reference]
+            LINE: [Specific line number where the issue occurs]
             SUGGESTION: [Specific suggestion for improvement]
             ---
+
+            Remember to always include the LINE number from the 'Changed lines' section above.
             """
 
             response = self.model.generate_content(prompt)
-            return self._parse_ai_feedback(response.text)
+            return self._parse_ai_feedback(
+                response.text, list(changed_lines_dict.keys())
+            )
 
         except Exception as e:
             print(f"Error analyzing code: {e}")
             return []
 
-    def _parse_ai_feedback(self, feedback_text: str) -> List[dict]:
+    def _parse_ai_feedback(
+        self, feedback_text: str, valid_line_numbers: List[int]
+    ) -> List[dict]:
         """
         Parse AI feedback into structured format
 
         Args:
             feedback_text (str): Raw feedback from Gemini
+            valid_line_numbers (List[int]): List of valid line numbers for comments
 
         Returns:
-            List of dictionaries containing parsed feedback
+            List of dictionaries containing parsed feedback with line numbers
         """
         comments = []
         current_comment = {}
@@ -169,65 +182,59 @@ class CodeReviewBot:
 
             if line.startswith("ISSUE:"):
                 current_comment["body"] = line[6:].strip()
-            elif line.startswith("LOCATION:"):
-                current_comment["location"] = line[9:].strip()
+            elif line.startswith("LINE:"):
+                try:
+                    # Extract the line number and validate it
+                    line_text = line[5:].strip()
+                    line_num = int(re.search(r"\d+", line_text).group())
+                    if line_num in valid_line_numbers:
+                        current_comment["line"] = line_num
+                    else:
+                        # Default to the first valid line if the suggested line is invalid
+                        current_comment["line"] = valid_line_numbers[0]
+                except (ValueError, AttributeError):
+                    current_comment["line"] = valid_line_numbers[0]
             elif line.startswith("SUGGESTION:"):
                 current_comment["body"] = (
-                    current_comment.get("body", "")
-                    + "\n\nSuggestion: "
-                    + line[11:].strip()
+                    f"{current_comment.get('body', '')}\n\nSuggestion: {line[11:].strip()}"
                 )
 
         if current_comment.get("body"):
             comments.append(current_comment)
 
-        return comments
+        return [c for c in comments if "line" in c]
 
     def post_review_comments(
-        self,
-        repo_name: str,
-        pr_number: int,
-        filename: str,
-        comments: List[dict],
-        line_numbers: List[int],
+        self, repo_name: str, pr_number: int, filename: str, comments: List[dict]
     ):
         """
-        Post review comments on the pull request
+        Post review comments on the pull request using the bot identity
 
         Args:
             repo_name (str): Repository name
             pr_number (int): Pull request number
             filename (str): File being reviewed
-            comments (List[dict]): List of review comments
-            line_numbers (List[int]): List of line numbers for changed lines
+            comments (List[dict]): List of review comments with line numbers
         """
         try:
             repo = self.github.get_repo(repo_name)
             pull_request = repo.get_pull(pr_number)
+            commit = pull_request.get_commits().reversed[0]
 
-            # Create a review instance
             review_comments = []
-
             for comment in comments:
-                # Try to match the location to a line number
-                target_line = line_numbers[0]  # Default to first changed line
-                if "location" in comment:
-                    # Try to find the closest matching line number
-                    for line_num in line_numbers:
-                        if str(line_num) in comment["location"]:
-                            target_line = line_num
-                            break
+                if "line" in comment:
+                    review_comments.append(
+                        {
+                            "path": filename,
+                            "line": comment["line"],
+                            "body": f"🤖 Code Review Bot:\n\n{comment['body']}",
+                        }
+                    )
 
-                review_comments.append(
-                    {"path": filename, "position": target_line, "body": comment["body"]}
-                )
-
-            # Submit all comments as a single review
             if review_comments:
                 pull_request.create_review(
-                    commit=pull_request.get_commits().reversed[0],
-                    comments=review_comments,
-                    event="COMMENT",
+                    commit=commit, comments=review_comments, event="COMMENT"
                 )
 
         except Exception as e:
@@ -257,12 +264,10 @@ def main():
     changes = bot.get_pull_request_changes(repo_name, pr_number)
 
     # Analyze each changed file and post comments
-    for filename, content, changed_lines, line_numbers in changes:
-        review_comments = bot.analyze_code(filename, content, changed_lines)
+    for filename, content, changed_lines_dict, line_numbers in changes:
+        review_comments = bot.analyze_code(filename, content, changed_lines_dict)
         if review_comments:
-            bot.post_review_comments(
-                repo_name, pr_number, filename, review_comments, line_numbers
-            )
+            bot.post_review_comments(repo_name, pr_number, filename, review_comments)
 
 
 if __name__ == "__main__":
