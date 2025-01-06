@@ -114,11 +114,12 @@ class CodeReviewBot:
         """Post review comments on the pull request"""
         repo = self.github.get_repo(repo_name)
         pull_request = repo.get_pull(pr_number)
+        commit = repo.get_commit(pull_request.head.sha)
 
         for comment in comments:
             pull_request.create_review_comment(
                 body=comment["body"],
-                commit=pull_request.head.sha,
+                commit=commit,
                 path=comment.get("path", ""),
                 line=comment.get("line", 0),
                 side=comment.get("side", "RIGHT"),
