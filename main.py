@@ -122,12 +122,12 @@ class CodeReviewBot:
                 commit=commit,
                 path=comment.get("path", ""),
                 line=comment.get("line", 0),
-                side=comment.get("side", "RIGHT"),
-                start_line=comment.get("start_line", None),
-                start_side=comment.get("start_side", None),
-                in_reply_to=comment.get("in_reply_to", None),
-                subject_type=comment.get("subject_type", None),
-                as_suggestion=comment.get("as_suggestion", False),
+                # side=comment.get("side", "RIGHT"),
+                # start_line=comment.get("start_line", None),
+                # start_side=comment.get("start_side", None),
+                # in_reply_to=comment.get("in_reply_to", None),
+                # subject_type=comment.get("subject_type", None),
+                # as_suggestion=comment.get("as_suggestion", False),
             )
 
 
