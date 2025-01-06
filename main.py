@@ -1,12 +1,15 @@
 import os
 import re
-import time
 import jwt
+import time
 import requests
 from datetime import datetime
-from typing import List, Tuple, Dict
-from github import Github
+from typing import List, Tuple, Optional, Dict
+from github import Github, GithubIntegration
 import google.generativeai as genai
+from github.PullRequest import PullRequest
+from github.Repository import Repository
+from github.ContentFile import ContentFile
 
 
 class GitHubAppAuth:
