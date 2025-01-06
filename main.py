@@ -1,7 +1,7 @@
 import os
 
-from .src.github_app_auth import GitHubAppAuth
-from .src.code_review_bot import CodeReviewBot
+from src.github_app_auth import GitHubAppAuth
+from src.code_review_bot import CodeReviewBot
 
 
 def main():
