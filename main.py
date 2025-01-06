@@ -3,6 +3,7 @@ import re
 import jwt
 import time
 import requests
+from datetime import datetime
 from typing import List, Tuple, Optional, Dict
 from github import Github, GithubIntegration
 import google.generativeai as genai
@@ -71,7 +72,12 @@ class GitHubAppAuth:
 
         data = response.json()
         self.installation_token = data["token"]
-        self.token_expires_at = int(time.time()) + (data["expires_at"] - time.time())
+
+        # Convert the ISO 8601 timestamp to Unix timestamp
+        expires_at = datetime.strptime(
+            data["expires_at"], "%Y-%m-%dT%H:%M:%SZ"
+        ).timestamp()
+        self.token_expires_at = int(expires_at)
 
         return self.installation_token
 
