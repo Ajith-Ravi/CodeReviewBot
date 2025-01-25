@@ -36,7 +36,7 @@ This project is a GitHub App that performs automated code reviews on pull reques
 
 3. **Set up environment variables:**
 
-   Create a `.env` file in the root directory and add the following variables:
+   Create a `.env` file in the root directory and add the following variables. Refer `.env.example` for sameple:
 
    ```env
    GITHUB_APP_ID=your_github_app_id
