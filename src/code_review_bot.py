@@ -54,9 +54,7 @@ class CodeReviewBot:
 
             changes = []
             for file in files:
-                if file.filename.endswith(
-                    (".py", ".js", ".ts", ".java", ".cpp", ".jsx", ".tsx")
-                ):
+                if not file.filename.endswith((".xml", ".bin")):
                     patch = file.patch
                     if patch is None:
                         print(
