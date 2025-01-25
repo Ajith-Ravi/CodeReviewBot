@@ -1,6 +1,9 @@
 import os
 from src.github_app_auth import GitHubAppAuth
 from github import Github
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 def resolve_bot_comments():
@@ -18,7 +21,7 @@ def resolve_bot_comments():
     github = Github(token)
 
     repo_name = os.getenv("GITHUB_REPOSITORY")
-    pr_number = int(os.getenv("GITHUB_PR_NUMBER"))
+    pr_number = os.getenv("GITHUB_PR_NUMBER")
 
     try:
         repo = github.get_repo(repo_name)
