@@ -6,7 +6,9 @@ on:
 
 jobs:
   run-on-comment:
-    if: github.event.comment.body == '@code-review-bott resolve'
+    if: |
+      contains(github.event.comment.body, '@code-review-bott resolve') && 
+      (github.event.issue.pull_request || github.event.pull_request)
     runs-on: ubuntu-latest
 
     steps:
