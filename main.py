@@ -4,6 +4,8 @@ from src.github_app_auth import GitHubAppAuth
 from src.code_review_bot import CodeReviewBot
 
 load_dotenv()
+
+
 def main():
     # Load environment variables
     app_id = os.getenv("GITHUB_APP_ID")
