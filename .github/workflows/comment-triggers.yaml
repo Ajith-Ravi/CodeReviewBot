@@ -41,4 +41,4 @@ jobs:
           GITHUB_PR_NUMBER: ${{ github.event.issue.pull_request.number }}
         run: |
           echo "Triggered by @code-review-bott resolve comment"
-          python bot_comments_resolver.py
+          python triggers/bot_comments_resolver.py

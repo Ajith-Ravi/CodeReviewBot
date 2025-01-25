@@ -198,31 +198,61 @@ class CodeReviewBot:
 
         return [c for c in comments if "line" in c]
 
-    def post_review_comments(
-        self, repo_name: str, pr_number: int, filename: str, comments: List[dict]
-    ):
-        """Post review comments using GitHub App identity"""
-        try:
-            self._refresh_github_client()
-            repo = self.github.get_repo(repo_name)
-            pull_request = repo.get_pull(pr_number)
-            commit = pull_request.get_commits().reversed[0]
 
-            review_comments = []
-            for comment in comments:
-                if "line" in comment:
-                    review_comments.append(
-                        {
-                            "path": filename,
-                            "line": comment["line"],
-                            "body": f"{comment['body']}\n\n_I am a GitHub App bot providing automated code review suggestions._",
-                        }
+def post_review_comments(
+    self, repo_name: str, pr_number: int, filename: str, comments: List[dict]
+):
+    """Post review comments using GitHub App identity with background-colored suggestions"""
+    try:
+        self._refresh_github_client()
+        repo = self.github.get_repo(repo_name)
+        pull_request = repo.get_pull(pr_number)
+        commit = pull_request.get_commits().reversed[0]
+
+        review_comments = []
+        for comment in comments:
+            if "line" in comment:
+                # Create a formatted comment with background-colored suggestions
+                formatted_body = []
+                if "+" in comment.get("body", ""):
+                    formatted_body.append("🟢 **Positive Suggestions:**")
+                    formatted_body.append(
+                        "".join(
+                            [
+                                f"`{line}`{' ' if line.startswith('+') else ''}"
+                                for line in comment["body"].split("\n")
+                                if line.startswith("+")
+                            ]
+                        )
                     )
 
-            if review_comments:
-                pull_request.create_review(
-                    commit=commit, comments=review_comments, event="COMMENT"
+                if "-" in comment.get("body", ""):
+                    formatted_body.append("🔴 **Potential Issues:**")
+                    formatted_body.append(
+                        "".join(
+                            [
+                                f"`{line}`{' ' if line.startswith('-') else ''}"
+                                for line in comment["body"].split("\n")
+                                if line.startswith("-")
+                            ]
+                        )
+                    )
+
+                # Add main comment body
+                formatted_body.append("\n" + comment["body"])
+
+                review_comments.append(
+                    {
+                        "path": filename,
+                        "line": comment["line"],
+                        "body": "\n".join(formatted_body),
+                    }
                 )
 
-        except Exception as e:
-            print(f"Error posting review comments: {e}")
+        if review_comments:
+            pull_request.create_review(
+                commit=commit, comments=review_comments, event="COMMENT"
+            )
+
+    except Exception as e:
+        print(f"Error posting review comments: {e}")
