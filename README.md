@@ -47,7 +47,7 @@ This project is a GitHub App that performs automated code reviews on pull reques
 
 ### GitHub Actions Workflow
 
-The project includes a GitHub Actions workflow (`.github/workflows/code-review.yaml`) to automate the code review process on pull requests.
+The project includes GitHub Actions workflows to automate the code review process on pull requests and handle comment triggers.
 
 1. **Create GitHub Secrets:**
 
@@ -59,10 +59,11 @@ The project includes a GitHub Actions workflow (`.github/workflows/code-review.y
    - `GH_PRIVATE_KEY`
    - `GH_INSTALLATION_ID`
 
-2. **Configure the workflow:**
+2. **Configure the workflows:**
 
-   The workflow is triggered on pull request events (`opened` and `synchronize`). It sets up Python, installs dependencies, and runs the code review bot.
+   - The `code-review.yaml` workflow is triggered on pull request events (`opened` and `synchronize`). It sets up Python, installs dependencies, and runs the code review bot.
 
+   - The `comment-triggers.yaml` workflow is triggered by comments containing `@code-review-bott resolve` on pull requests. It sets up Python, installs dependencies, and runs the `bot_comments_resolver.py` script.
 
 ## Usage
 
@@ -81,6 +82,7 @@ The project includes a GitHub Actions workflow (`.github/workflows/code-review.y
 - `main.py`: Entry point of the application. Loads environment variables, initializes the bot, and runs the code review process.
 - `src/github_app_auth.py`: Handles GitHub App authentication and token management.
 - `src/code_review_bot.py`: Contains the main logic for fetching pull request changes, analyzing code, and posting review comments.
+- `src/triggers/bot_comments_resolver.py`: Handles the `@code-review-bott resolve` comment trigger to resolve comments on pull requests.
 
 ## Contributing
 
@@ -90,7 +92,6 @@ The project includes a GitHub Actions workflow (`.github/workflows/code-review.y
 4. Commit your changes (`git commit -am 'Add new feature'`).
 5. Push to the branch (`git push origin feature-branch`).
 6. Create a new Pull Request.
-
 
 ## Contact
 
