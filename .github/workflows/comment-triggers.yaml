@@ -1,12 +1,9 @@
 name: Comment Triggers
 
-#on:
-#  issue_comment:
-#    types: [created]
-
 on:
-  pull_request:
-    types: [ opened, synchronize ]
+  issue_comment:
+    types: [created]
+
 
 jobs:
   run-on-comment:
