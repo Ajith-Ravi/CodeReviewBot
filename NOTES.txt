@@ -1,0 +1,36 @@
+To set up and use this GitHub App version:
+
+Create a GitHub App:
+
+Go to GitHub Settings -> Developer Settings -> GitHub Apps
+Click "New GitHub App"
+Fill in these details:
+
+Name: Your bot name (e.g., "Code Review Bot")
+Homepage URL: Can be your repo URL
+Webhook: Optional, disable if not needed
+
+
+Permissions needed:
+
+Repository permissions:
+
+Contents: Read
+Pull requests: Read & Write
+Metadata: Read
+
+
+
+
+Where can this GitHub App be installed?: Choose based on your needs
+Create the app
+
+
+Set up the App:
+
+Generate a private key (save it securely)
+Install the app in your repository
+Note down the App ID and Installation ID
+
+
+Install required dependencies:
