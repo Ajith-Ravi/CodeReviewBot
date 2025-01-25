@@ -31,6 +31,7 @@ jobs:
           GITHUB_INSTALLATION_ID: ${{ secrets.GH_INSTALLATION_ID }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_PR_NUMBER: ${{ github.event.issue.pull_request.number }}
+          PYTHONPATH: ${{ github.workspace }}/src
         run: |
           echo "Triggered by @code-review-bott resolve comment"
           python src/triggers/bot_comments_resolver.py
