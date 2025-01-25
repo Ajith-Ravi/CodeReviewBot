@@ -5,6 +5,15 @@ on:
     types: [created]
 
 jobs:
+  debug-comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug Comment Context
+        run: |
+          echo "Comment Body: ${{ github.event.comment.body }}"
+          echo "Is PR Comment: ${{ github.event.issue.pull_request != null }}"
+          echo "PR Number: ${{ github.event.issue.pull_request.number }}"
+
   run-on-comment:
     if: |
       contains(github.event.comment.body, '@code-review-bott resolve') && 
