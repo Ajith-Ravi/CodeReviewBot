@@ -138,6 +138,7 @@ class CodeReviewBot:
             {code}
             ```
             
+            
             Provide each piece of feedback in the following format:
             ISSUE: [Brief description of the issue]
             LINE: [Specific line number where the issue occurs]
@@ -145,6 +146,13 @@ class CodeReviewBot:
             ---
 
             Remember to always include the LINE number from the 'Changed lines' section above.
+            
+            Give coloured feedback on the code changes with + and - signs with markdown syntax with green and red colours respectively.
+            For example:
+            ```
+                + This is an addition (green)
+                - This is a deletion (red)
+            ```
             """
 
             response = self.model.generate_content(prompt)
@@ -158,7 +166,7 @@ class CodeReviewBot:
 
     @staticmethod
     def _parse_ai_feedback(
-            feedback_text: str, valid_line_numbers: List[int]
+        feedback_text: str, valid_line_numbers: List[int]
     ) -> List[dict]:
         """Parse AI feedback into structured format"""
         comments = []
