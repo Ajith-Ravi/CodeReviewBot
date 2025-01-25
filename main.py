@@ -1,9 +1,9 @@
 import os
-
+from dotenv import load_dotenv
 from src.github_app_auth import GitHubAppAuth
 from src.code_review_bot import CodeReviewBot
 
-
+load_dotenv()
 def main():
     # Load environment variables
     app_id = os.getenv("GITHUB_APP_ID")
@@ -12,6 +12,8 @@ def main():
     gemini_api_key = os.getenv("GEMINI_API_KEY")
     repo_name = os.getenv("GITHUB_REPOSITORY")
     pr_number = os.getenv("GITHUB_PR_NUMBER")
+
+    print(app_id, private_key, installation_id, gemini_api_key, repo_name, pr_number)
 
     # Validate environment variables
     if not all(

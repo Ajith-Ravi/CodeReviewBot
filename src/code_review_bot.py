@@ -83,7 +83,8 @@ class CodeReviewBot:
             print(f"Error getting pull request changes: {e}")
             return []
 
-    def _extract_changed_lines(self, patch: str) -> Tuple[Dict[int, str], List[int]]:
+    @staticmethod
+    def _extract_changed_lines(patch: str) -> Tuple[Dict[int, str], List[int]]:
         """Extract changed lines and their numbers from a patch"""
         changed_lines_dict = {}
         line_numbers = []
@@ -155,8 +156,9 @@ class CodeReviewBot:
             print(f"Error analyzing code: {e}")
             return []
 
+    @staticmethod
     def _parse_ai_feedback(
-        self, feedback_text: str, valid_line_numbers: List[int]
+            feedback_text: str, valid_line_numbers: List[int]
     ) -> List[dict]:
         """Parse AI feedback into structured format"""
         comments = []
