@@ -212,6 +212,14 @@ class CodeReviewBot:
             pull_request = repo.get_pull(pr_number)
             commit = pull_request.get_commits().reversed[0]
 
+            if self._check_for_resolve_comment(pull_request):
+                print("Resolve comment found. Resolving all bot comments.")
+                self._resolve_bot_comments(pull_request)
+                pull_request.create_review(
+                    commit=commit, body="All bot comments resolved.", event="APPROVE"
+                )
+                return
+
             review_comments = []
             for comment in comments:
                 if "line" in comment:
@@ -230,3 +238,22 @@ class CodeReviewBot:
 
         except Exception as e:
             print(f"Error posting review comments: {e}")
+
+    def _check_for_resolve_comment(self, pull_request) -> bool:
+        """Check if the pull request contains a resolve comment from a user"""
+        comments = pull_request.get_issue_comments()
+        for comment in comments:
+            if (
+                "@code-review-bott resolve" in comment.body.lower()
+                and comment.user.login != self.github.get_user().login
+            ):
+                return True
+        return False
+
+    def _resolve_bot_comments(self, pull_request):
+        """Resolve all comments posted by the bot"""
+        bot_login = self.github.get_user().login
+        comments = pull_request.get_review_comments()
+        for comment in comments:
+            if comment.user.login == bot_login:
+                comment.delete()
