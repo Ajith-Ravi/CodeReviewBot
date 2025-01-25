@@ -54,9 +54,7 @@ class CodeReviewBot:
 
             changes = []
             for file in files:
-                if file.filename.endswith(
-                    (".py", ".js", ".ts", ".java", ".cpp", ".jsx", ".tsx")
-                ):
+                if not file.filename.endswith((".xml", ".bin")):
                     patch = file.patch
                     if patch is None:
                         print(
@@ -203,7 +201,7 @@ class CodeReviewBot:
     def post_review_comments(
         self, repo_name: str, pr_number: int, filename: str, comments: List[dict]
     ):
-        """Post review comments using GitHub App identity"""
+        """Post review comments using GitHub App identity with background-colored suggestions"""
         try:
             self._refresh_github_client()
             repo = self.github.get_repo(repo_name)
@@ -213,11 +211,40 @@ class CodeReviewBot:
             review_comments = []
             for comment in comments:
                 if "line" in comment:
+                    # Create a formatted comment with background-colored suggestions
+                    formatted_body = []
+                    if "+" in comment.get("body", ""):
+                        formatted_body.append("🟢 **Positive Suggestions:**")
+                        formatted_body.append(
+                            "".join(
+                                [
+                                    f"`{line}`{' ' if line.startswith('+') else ''}"
+                                    for line in comment["body"].split("\n")
+                                    if line.startswith("+")
+                                ]
+                            )
+                        )
+
+                    if "-" in comment.get("body", ""):
+                        formatted_body.append("🔴 **Potential Issues:**")
+                        formatted_body.append(
+                            "".join(
+                                [
+                                    f"`{line}`{' ' if line.startswith('-') else ''}"
+                                    for line in comment["body"].split("\n")
+                                    if line.startswith("-")
+                                ]
+                            )
+                        )
+
+                    # Add main comment body
+                    formatted_body.append("\n" + comment["body"])
+
                     review_comments.append(
                         {
                             "path": filename,
                             "line": comment["line"],
-                            "body": f"{comment['body']}\n\n_I am a GitHub App bot providing automated code review suggestions._",
+                            "body": "\n".join(formatted_body),
                         }
                     )
 
