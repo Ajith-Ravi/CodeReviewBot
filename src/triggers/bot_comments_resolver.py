@@ -50,3 +50,6 @@ def resolve_bot_comments():
         )
     except Exception as e:
         print(f"Error resolving bot comments: {e}")
+
+if __name__ == "__main__":
+    resolve_bot_comments()
