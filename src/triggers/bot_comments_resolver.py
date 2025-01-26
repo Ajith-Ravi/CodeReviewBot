@@ -1,4 +1,7 @@
 import os
+
+import requests
+
 from src.github_app_auth import GitHubAppAuth
 from github import Github
 from dotenv import load_dotenv
@@ -8,7 +11,7 @@ load_dotenv()
 
 def resolve_bot_comments():
     """
-    Handle resolving comments if the resolve command is found
+    Resolve conversation threads for bot comments
     """
     # Load environment variables
     app_id = os.getenv("GITHUB_APP_ID")
@@ -26,20 +29,24 @@ def resolve_bot_comments():
     try:
         repo = github.get_repo(repo_name)
         pull_request = repo.get_pull(pr_number)
-        commit = pull_request.get_commits().reversed[0]
 
-        bot_login = github.get_user().login
-        comments = pull_request.get_review_comments()
+        comments_url = f"https://api.github.com/repos/{repo_name}/pulls/{pr_number}/comments"
+        headers = {
+            "Authorization": f"token {token}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+
+        response = requests.get(comments_url, headers=headers)
+        comments = response.json()
+
+        # Resolve bot comments
         for comment in comments:
-            if comment.user.login == bot_login:
-                comment.delete()
+            if comment['user']['login'] == github.get_user().login:
+                resolve_url = f"https://api.github.com/repos/{repo_name}/pulls/comments/{comment['id']}/resolve"
+                requests.post(resolve_url, headers=headers)
 
         pull_request.create_review(
-            commit=commit, body="All bot comments resolved.", event="APPROVE"
+            body="All bot comments resolved.", event="APPROVE"
         )
     except Exception as e:
-        print(f"Error handling resolve comments: {e}")
-
-
-if __name__ == "__main__":
-    resolve_bot_comments()
+        print(f"Error resolving bot comments: {e}")
