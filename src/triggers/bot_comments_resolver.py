@@ -1,13 +1,10 @@
 import os
-
 import requests
-
 from src.github_app_auth import GitHubAppAuth
 from github import Github
 from dotenv import load_dotenv
 
 load_dotenv()
-
 
 def resolve_bot_comments():
     """
@@ -42,8 +39,10 @@ def resolve_bot_comments():
         # Resolve bot comments
         for comment in comments:
             if comment['user']['login'] == github.get_user().login:
-                resolve_url = f"https://api.github.com/repos/{repo_name}/pulls/comments/{comment['id']}/resolve"
-                requests.post(resolve_url, headers=headers)
+                update_url = f"https://api.github.com/repos/{repo_name}/pulls/comments/{comment['id']}"
+                updated_body = comment['body'] + "\n\n*This comment has been resolved.*"
+                data = {"body": updated_body}
+                requests.patch(update_url, headers=headers, json=data)
 
         pull_request.create_review(
             body="All bot comments resolved.", event="APPROVE"
