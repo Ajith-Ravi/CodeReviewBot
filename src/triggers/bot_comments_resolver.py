@@ -24,8 +24,10 @@ def resolve_bot_comments():
     # Initialize GitHub App authentication
     app_auth = GitHubAppAuth(app_id, private_key)
     token = app_auth.get_installation_token(installation_id)
-    github = Github(token)
+    if not token:
+        raise ValueError("Failed to obtain installation token")
 
+    github = Github(token)
     repo_name = os.getenv("GITHUB_REPOSITORY")
     pr_number = os.getenv("GITHUB_PR_NUMBER")
 
@@ -37,8 +39,9 @@ def resolve_bot_comments():
     try:
         repo = github.get_repo(repo_name)
         pull_request = repo.get_pull(pr_number)
+        bot_login = github.get_user().login
 
-        logger.info(repo, pull_request)
+        logger.info(f"Processing PR {pr_number} in repo {repo_name}")
 
         comments_url = (
             f"https://api.github.com/repos/{repo_name}/pulls/{pr_number}/comments"
@@ -49,25 +52,33 @@ def resolve_bot_comments():
         }
 
         response = requests.get(comments_url, headers=headers)
+        response.raise_for_status()
         comments = response.json()
 
-        logger.info("Comments: ", comments)
-
         # Resolve bot comments
+        resolved_count = 0
         for comment in comments:
-            if comment["user"]["login"] == github.get_user().login:
+            if (
+                comment["user"]["login"] == bot_login
+                and "*This comment has been resolved.*" not in comment["body"]
+            ):
                 update_url = f"https://api.github.com/repos/{repo_name}/pulls/comments/{comment['id']}"
-                logger.info("Update url", update_url)
                 updated_body = comment["body"] + "\n\n*This comment has been resolved.*"
-                data = {"body": updated_body}
-                requests.patch(update_url, headers=headers, json=data)
+                response = requests.patch(
+                    update_url, headers=headers, json={"body": updated_body}
+                )
+                response.raise_for_status()
+                resolved_count += 1
 
-                logger.info(f"Resolved comment: {comment['id']}")
+        if resolved_count > 0:
+            pull_request.create_review(
+                body=f"Resolved {resolved_count} bot comments.", event="APPROVE"
+            )
 
-        pull_request.create_review(body="All bot comments resolved.", event="APPROVE")
+    except requests.exceptions.RequestException as e:
+        raise Exception(f"GitHub API error: {e}")
     except Exception as e:
-        logger.info("Error: ", e)
-        logger.info(f"Error resolving bot comments: {e}")
+        raise Exception(f"Error resolving bot comments: {e}")
 
 
 if __name__ == "__main__":
