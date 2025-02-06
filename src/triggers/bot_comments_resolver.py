@@ -30,8 +30,13 @@ def resolve_bot_comments():
     pr_number = os.getenv("GITHUB_PR_NUMBER")
 
     try:
+        pr_number = int(pr_number)
+    except ValueError:
+        raise ValueError("GITHUB_PR_NUMBER must be an integer")
+
+    try:
         repo = github.get_repo(repo_name)
-        pull_request = repo.get_pull(int(pr_number))
+        pull_request = repo.get_pull(pr_number)
 
         logger.info(repo, pull_request)
 

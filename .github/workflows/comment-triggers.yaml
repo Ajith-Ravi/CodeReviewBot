@@ -34,7 +34,7 @@ jobs:
           GITHUB_PRIVATE_KEY: ${{ secrets.GH_PRIVATE_KEY }}
           GITHUB_INSTALLATION_ID: ${{ secrets.GH_INSTALLATION_ID }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_PR_NUMBER: ${{ github.event.issue.pull_request.number }}
+          GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           echo "Triggered by @code-review-bott resolve comment"
           python -m src.triggers.bot_comments_resolver   
