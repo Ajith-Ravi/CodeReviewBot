@@ -31,7 +31,7 @@ def resolve_bot_comments():
 
     try:
         repo = github.get_repo(repo_name)
-        pull_request = repo.get_pull(pr_number)
+        pull_request = repo.get_pull(int(pr_number))
 
         logger.info(repo, pull_request)
 
