@@ -39,7 +39,6 @@ def resolve_bot_comments():
     try:
         repo = github.get_repo(repo_name)
         pull_request = repo.get_pull(pr_number)
-        bot_login = github.get_user().login
 
         logger.info(f"Processing PR {pr_number} in repo {repo_name}")
 
@@ -55,11 +54,19 @@ def resolve_bot_comments():
         response.raise_for_status()
         comments = response.json()
 
+        # Get the app's slug/name instead of trying to get user login
+        app_response = requests.get("https://api.github.com/app", headers=headers)
+        app_response.raise_for_status()
+        app_data = app_response.json()
+        bot_slug = app_data.get("slug")  # This is the bot's name
+
         # Resolve bot comments
         resolved_count = 0
         for comment in comments:
+            # Check against the app's slug/name instead of login
             if (
-                comment["user"]["login"] == bot_login
+                comment["user"]["type"] == "Bot"
+                and comment["user"]["login"].startswith(bot_slug)
                 and "*This comment has been resolved.*" not in comment["body"]
             ):
                 update_url = f"https://api.github.com/repos/{repo_name}/pulls/comments/{comment['id']}"
