@@ -20,6 +20,7 @@ def resolve_bot_comments():
     app_id = os.getenv("GITHUB_APP_ID")
     private_key = os.getenv("GITHUB_PRIVATE_KEY")
     installation_id = os.getenv("GITHUB_INSTALLATION_ID")
+    bot_name = os.getenv("GITHUB_BOT_NAME", "Code Review BoTT")  # Add this as fallback
 
     # Initialize GitHub App authentication
     app_auth = GitHubAppAuth(app_id, private_key)
@@ -54,19 +55,13 @@ def resolve_bot_comments():
         response.raise_for_status()
         comments = response.json()
 
-        # Get the app's slug/name instead of trying to get user login
-        app_response = requests.get("https://api.github.com/app", headers=headers)
-        app_response.raise_for_status()
-        app_data = app_response.json()
-        bot_slug = app_data.get("slug")  # This is the bot's name
-
         # Resolve bot comments
         resolved_count = 0
         for comment in comments:
-            # Check against the app's slug/name instead of login
+            # Check if the comment is from our bot using the bot name
             if (
                 comment["user"]["type"] == "Bot"
-                and comment["user"]["login"].startswith(bot_slug)
+                and comment["user"]["login"] == bot_name
                 and "*This comment has been resolved.*" not in comment["body"]
             ):
                 update_url = f"https://api.github.com/repos/{repo_name}/pulls/comments/{comment['id']}"
