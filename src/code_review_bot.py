@@ -250,7 +250,7 @@ class CodeReviewBot:
 
             if review_comments:
                 pull_request.create_review(
-                    commit=commit, comments=review_comments, event="COMMENT"
+                    commit=commit, comments=review_comments, event="REQUEST_CHANGES"
                 )
 
         except Exception as e:
