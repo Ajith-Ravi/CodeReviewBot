@@ -74,6 +74,7 @@ def resolve_bot_comments():
                     update_url, headers=headers, json={"body": updated_body}
                 )
                 response.raise_for_status()
+                logger.info(response.raise_for_status())
                 resolved_count += 1
 
         if resolved_count > 0:
