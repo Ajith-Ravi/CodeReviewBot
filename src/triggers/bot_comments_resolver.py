@@ -20,7 +20,9 @@ def resolve_bot_comments():
     app_id = os.getenv("GITHUB_APP_ID")
     private_key = os.getenv("GITHUB_PRIVATE_KEY")
     installation_id = os.getenv("GITHUB_INSTALLATION_ID")
-    bot_name = os.getenv("GITHUB_BOT_NAME", "Code Review BoTT")  # Add this as fallback
+    bot_name = os.getenv(
+        "GITHUB_BOT_NAME", "code-review-bott[bot]"
+    )  # Add this as fallback
 
     # Initialize GitHub App authentication
     app_auth = GitHubAppAuth(app_id, private_key)
