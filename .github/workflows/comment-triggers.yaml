@@ -1,17 +1,13 @@
 name: Comment Triggers
 
-#on:
-#  issue_comment:
-#    types: [created]
-
 on:
-  pull_request:
-    types: [ opened, synchronize ]
+  issue_comment:
+    types: [created]
 
 
 jobs:
   run-on-comment:
-#    if: contains(github.event.comment.body, '@code-review-bott resolve') && github.event.issue.pull_request != null
+    if: contains(github.event.comment.body, '@code-review-bott resolve') && github.event.issue.pull_request != null
     runs-on: ubuntu-latest
 
     steps:

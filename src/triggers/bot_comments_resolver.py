@@ -65,7 +65,6 @@ def resolve_bot_comments():
             if (
                 comment["user"]["type"] == "Bot"
                 and comment["user"]["login"] == bot_name
-                # and "*This comment has been resolved.*" not in comment["body"]
             ):
                 logger.info(f"Resolving comment {comment['id']}")
                 update_url = f"https://api.github.com/repos/{repo_name}/pulls/comments/{comment['id']}"
@@ -75,13 +74,6 @@ def resolve_bot_comments():
                 )
                 response.raise_for_status()
                 logger.info(response.raise_for_status())
-
-                # Mark the comment as resolved
-                resolve_url = f"https://api.github.com/repos/{repo_name}/pulls/reviews/comments/{comment['id']}/threads/resolve"
-                resolve_response = requests.post(resolve_url, headers=headers)
-                resolve_response.raise_for_status()
-                logger.info(f"Comment {comment['id']} resolved successfully")
-
                 resolved_count += 1
 
         if resolved_count > 0:
