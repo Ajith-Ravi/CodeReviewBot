@@ -59,11 +59,13 @@ def resolve_bot_comments():
         resolved_count = 0
         for comment in comments:
             # Check if the comment is from our bot using the bot name
+            logger.info(f'{comment["user"]["type"]} {comment["user"]["login"]}')
             if (
                 comment["user"]["type"] == "Bot"
                 and comment["user"]["login"] == bot_name
                 and "*This comment has been resolved.*" not in comment["body"]
             ):
+                logger.info(f"Resolving comment {comment['id']}")
                 update_url = f"https://api.github.com/repos/{repo_name}/pulls/comments/{comment['id']}"
                 updated_body = comment["body"] + "\n\n*This comment has been resolved.*"
                 response = requests.patch(
